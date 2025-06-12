@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:magazine_manager/add_item_view.dart';
+import 'package:magazine_manager/l10n/app_localizations.dart';
 import 'dart:convert';
 
 import 'models/stock.dart';
@@ -58,8 +59,9 @@ class _ItemDetailViewState extends State<ItemDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: Text('Szczegóły: ${widget.item.name}')),
+      appBar: AppBar(title: Text('${loc.details}: ${widget.item.name}')),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : stockList.isEmpty
@@ -71,13 +73,12 @@ class _ItemDetailViewState extends State<ItemDetailView> {
                 return Card(
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
-                    title: Text('Lokalizacja: ${stock.location}'),
+                    title: Text('${loc.location}: ${stock.location}'),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Ilość: ${stock.amount}'),
-                        Text('Data: ${stock.date}'),
-                        Text('Aktywny: ${stock.isActive ? 'Tak' : 'Nie'}'),
+                        Text('${loc.amount}: ${stock.amount}'),
+                        Text('${loc.date}: ${stock.date}'),
                       ],
                     ),
                   ),
@@ -91,7 +92,7 @@ class _ItemDetailViewState extends State<ItemDetailView> {
             context,
             MaterialPageRoute(
               builder: (context) => AddItemView(
-                productId: widget.item.id,
+                item: widget.item,
                 token: widget.token,
                 apiUrl: widget.apiUrl,
               ),

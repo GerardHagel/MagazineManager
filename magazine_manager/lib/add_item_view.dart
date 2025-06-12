@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+import 'package:magazine_manager/l10n/app_localizations.dart';
+import 'package:magazine_manager/models/item.dart';
+
 class AddItemView extends StatefulWidget {
-  final int productId;
+  final Item item;
   final String token;
   final String apiUrl;
 
   const AddItemView({
     super.key,
-    required this.productId,
+    required this.item,
     required this.token,
     required this.apiUrl,
   });
@@ -30,7 +33,7 @@ class _AddItemViewState extends State<AddItemView> {
     if (_formKey.currentState!.validate()) {
       setState(() => isSubmitting = true);
 
-      final int productId = widget.productId;
+      final int id = widget.item.id;
       final int amount = int.parse(amountController.text);
       final String location = locationController.text;
 
@@ -38,7 +41,7 @@ class _AddItemViewState extends State<AddItemView> {
         Uri.parse('${widget.apiUrl}/api/stock/add'),
         headers: {'Token': widget.token, 'Content-Type': 'application/json'},
         body: jsonEncode({
-          'ProductID': productId,
+          'ProductID': id,
           'Amount': amount,
           'Location': location,
         }),
@@ -64,8 +67,9 @@ class _AddItemViewState extends State<AddItemView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: AppBar(title: const Text('Dodaj przedmiot do stock')),
+      appBar: AppBar(title: Text(loc.addItem)),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -73,28 +77,27 @@ class _AddItemViewState extends State<AddItemView> {
           child: Column(
             children: [
               Text(
-                'Produkt: ID ${widget.productId}',
+                widget.item.name,
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: amountController,
-                decoration: const InputDecoration(labelText: 'Ilość'),
+                decoration: InputDecoration(labelText: loc.amount),
                 keyboardType: TextInputType.number,
-                validator: (value) => value!.isEmpty ? 'Wpisz ilość' : null,
+                validator: (value) => value!.isEmpty ? loc.setAmount : null,
               ),
               TextFormField(
                 controller: locationController,
-                decoration: const InputDecoration(labelText: 'Lokalizacja'),
-                validator: (value) =>
-                    value!.isEmpty ? 'Wpisz lokalizację' : null,
+                decoration: InputDecoration(labelText: loc.location),
+                validator: (value) => value!.isEmpty ? loc.setLocation : null,
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: isSubmitting ? null : submit,
                 child: isSubmitting
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Zatwierdź'),
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text(loc.confirm),
               ),
             ],
           ),

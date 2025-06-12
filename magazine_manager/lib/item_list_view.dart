@@ -4,6 +4,7 @@ import 'package:magazine_manager/main.dart';
 import 'dart:convert';
 import 'item_detail_view.dart';
 import 'models/item.dart';
+import 'l10n/app_localizations.dart';
 
 class ItemListView extends StatefulWidget {
   final String token;
@@ -17,6 +18,7 @@ class ItemListView extends StatefulWidget {
 class _ItemListViewState extends State<ItemListView> {
   List<Item> items = [];
   bool isLoading = true;
+  String? errorMessage;
 
   Future<void> fetchItems() async {
     try {
@@ -32,12 +34,25 @@ class _ItemListViewState extends State<ItemListView> {
           setState(() {
             items = data.map((json) => Item.fromJson(json)).toList();
             isLoading = false;
+            errorMessage = null;
           });
         }
       } else {
-        throw Exception('Nie udało się pobrać danych');
+        if (mounted) {
+          setState(() {
+            errorMessage =
+                'Nie udało się pobrać danych'; // Możesz dodać tłumaczenie
+            isLoading = false;
+          });
+        }
       }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = 'Błąd podczas pobierania danych: $e';
+          isLoading = false;
+        });
+      }
       print('Błąd podczas pobierania: $e');
     }
   }
@@ -50,18 +65,21 @@ class _ItemListViewState extends State<ItemListView> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lista przedmiotów'),
+        title: Text(loc.itemListTitle), // np. "Lista przedmiotów"
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Wyloguj się',
+            tooltip: loc.logoutTooltip, // np. "Wyloguj się"
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => const MyHomePage(title: 'Zaloguj się'),
+                  builder: (context) =>
+                      MyApp(initialLocale: Localizations.localeOf(context)),
                 ),
                 (route) => false,
               );
@@ -71,6 +89,8 @@ class _ItemListViewState extends State<ItemListView> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+          ? Center(child: Text(errorMessage!))
           : ListView.builder(
               itemCount: items.length,
               itemBuilder: (context, index) {

@@ -2,13 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:magazine_manager/item_list_view.dart';
+import 'l10n/app_localizations.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MyApp extends StatefulWidget {
+  final Locale? initialLocale;
+  const MyApp({super.key, this.initialLocale});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  Locale? _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _locale = widget.initialLocale;
+  }
+
+  void setLocale(Locale locale) {
+    setState(() {
+      _locale = locale;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,16 +43,27 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Zaloguj się'),
+      locale: _locale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: MyHomePage(
+        title: AppLocalizations.of(context)?.login ?? 'Login',
+        onLocaleChange: setLocale,
+      ),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
   final String title;
-  final String apiUrl = 'http://10.0.2.2:8080';
+  final String apiUrl = 'https://superb-luckily-sunbird.ngrok-free.app';
+  final Function(Locale) onLocaleChange;
 
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({
+    super.key,
+    required this.title,
+    required this.onLocaleChange,
+  });
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -73,9 +105,14 @@ class _MyHomePageState extends State<MyHomePage> {
         final data = jsonDecode(response.body);
         final token = data['access_token'];
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Zalogowano pomyślnie')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)?.loggedIn ??
+                  'Logged in successfully',
+            ),
+          ),
+        );
 
         Navigator.pushReplacement(
           context,
@@ -88,7 +125,11 @@ class _MyHomePageState extends State<MyHomePage> {
         final body = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(body['message'] ?? 'Nieprawidłowe dane logowania'),
+            content: Text(
+              body['message'] ??
+                  AppLocalizations.of(context)?.login ??
+                  'Invalid login data',
+            ),
           ),
         );
       }
@@ -98,17 +139,31 @@ class _MyHomePageState extends State<MyHomePage> {
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Błąd sieci: $e')));
+      ).showSnackBar(SnackBar(content: Text('Network error: $e')));
       print('$e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
+        title: Text(loc.login),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          PopupMenuButton<Locale>(
+            icon: const Icon(Icons.language),
+            onSelected: (Locale locale) {
+              widget.onLocaleChange(locale);
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<Locale>>[
+              PopupMenuItem(value: Locale('en'), child: Text('English')),
+              PopupMenuItem(value: Locale('pl'), child: Text('Polski')),
+            ],
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -119,39 +174,39 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               TextFormField(
                 controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
+                decoration: InputDecoration(
+                  labelText: loc.email,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.email),
                 ),
                 validator: (value) =>
-                    value == null || value.isEmpty ? 'Podaj email' : null,
+                    value == null || value.isEmpty ? loc.email : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: passwordController,
                 obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Hasło',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.lock),
+                decoration: InputDecoration(
+                  labelText: loc.password,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.lock),
                 ),
                 validator: (value) =>
-                    value == null || value.isEmpty ? 'Podaj hasło' : null,
+                    value == null || value.isEmpty ? loc.password : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: twoFaController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Kod Google 2FA',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.security),
+                decoration: InputDecoration(
+                  labelText: loc.google2fa,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.security),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Podaj kod 2FA';
+                  if (value == null || value.isEmpty) return loc.google2fa;
                   if (value.length != 6 || int.tryParse(value) == null) {
-                    return 'Kod musi mieć 6 cyfr';
+                    return 'Kod musi mieć 6 cyfr'; // Możesz też dodać tłumaczenie tego komunikatu
                   }
                   return null;
                 },
@@ -171,10 +226,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Zaloguj się',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                      : Text(loc.login, style: const TextStyle(fontSize: 16)),
                 ),
               ),
             ],
