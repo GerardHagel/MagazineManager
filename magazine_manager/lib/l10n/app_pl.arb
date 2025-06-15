@@ -22,5 +22,8 @@
   "no": "Nie",
   "itemListTitle": "Lista przedmiotów",
   "logoutTooltip": "Wyloguj się",
-  "errorFetchingItems": "Nie udało się pobrać danych"
+  "errorFetchingItems": "Nie udało się pobrać danych",
+  "checkStockOffline": "Sprawdź stan magazynu (offline)",
+  "noOfflineData": "Nie zapisano żadnych danych offline",
+  "offlineModeNotice": "Tryb offline – dane mogą być nieaktualne"
 }

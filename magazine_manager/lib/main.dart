@@ -1,16 +1,29 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:magazine_manager/item_list_view.dart';
 import 'l10n/app_localizations.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox('itemsBox');
+  await Hive.openBox('authBox');
+  await Hive.openBox('pendingItemsBox');
+  await Hive.openBox('stockBox');
+
+  final authBox = Hive.box('authBox');
+  final token = authBox.get('token');
+
+  runApp(MyApp(initialToken: token));
 }
 
 class MyApp extends StatefulWidget {
   final Locale? initialLocale;
-  const MyApp({super.key, this.initialLocale});
+  final String? initialToken;
+  const MyApp({super.key, this.initialLocale, this.initialToken});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -18,11 +31,34 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Locale? _locale;
+  final String apiUrl = 'https://superb-luckily-sunbird.ngrok-free.app';
 
   @override
   void initState() {
     super.initState();
     _locale = widget.initialLocale;
+    checkOfflineLogin();
+  }
+
+  Future<void> checkOfflineLogin() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity == ConnectivityResult.none) {
+      final box = Hive.box('itemsBox');
+      final token = box.get('access_token');
+      if (token != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ItemListView(
+              token: token,
+              apiUrl: apiUrl,
+              isOfflineMode: true,
+              isReadOnly: false,
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void setLocale(Locale locale) {
@@ -49,6 +85,7 @@ class _MyAppState extends State<MyApp> {
       home: MyHomePage(
         title: AppLocalizations.of(context)?.login ?? 'Login',
         onLocaleChange: setLocale,
+        apiUrl: apiUrl,
       ),
     );
   }
@@ -56,12 +93,13 @@ class _MyAppState extends State<MyApp> {
 
 class MyHomePage extends StatefulWidget {
   final String title;
-  final String apiUrl = 'https://superb-luckily-sunbird.ngrok-free.app';
+  final String apiUrl;
   final Function(Locale) onLocaleChange;
 
   const MyHomePage({
     super.key,
     required this.title,
+    required this.apiUrl,
     required this.onLocaleChange,
   });
 
@@ -105,6 +143,12 @@ class _MyHomePageState extends State<MyHomePage> {
         final data = jsonDecode(response.body);
         final token = data['access_token'];
 
+        final box = Hive.box('itemsBox');
+        await box.put('access_token', token);
+        await box.put('email', emailController.text.trim());
+        await box.put('password', passwordController.text);
+        await box.put('google2fa', twoFaController.text.trim());
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -117,8 +161,12 @@ class _MyHomePageState extends State<MyHomePage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                ItemListView(token: token, apiUrl: widget.apiUrl),
+            builder: (context) => ItemListView(
+              token: token,
+              apiUrl: widget.apiUrl,
+              isOfflineMode: false,
+              isReadOnly: false,
+            ),
           ),
         );
       } else {
@@ -227,6 +275,40 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(loc.login, style: const TextStyle(fontSize: 16)),
+                ),
+              ),
+              SizedBox(height: 12),
+
+              TextButton(
+                onPressed: () async {
+                  final box = Hive.box('itemsBox');
+                  final cachedItems = box.get('items');
+                  final cachedToken = box.get('access_token');
+                  if (cachedItems != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ItemListView(
+                          token: cachedToken ?? '',
+                          apiUrl: widget.apiUrl,
+                          isOfflineMode: true,
+                          isReadOnly: true,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Brak zapisanych danych magazynu.'),
+                      ),
+                    );
+                  }
+                },
+                child: Text(
+                  loc.checkStockOffline,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
                 ),
               ),
             ],

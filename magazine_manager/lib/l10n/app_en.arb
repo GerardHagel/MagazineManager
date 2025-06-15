@@ -22,5 +22,8 @@
   "no": "No",
   "itemListTitle": "Item list",
   "logoutTooltip": "Logout",
-  "errorFetchingItems": "Unable to download data"
+  "errorFetchingItems": "Unable to download data",
+  "checkStockOffline": "Check stock (offline)",
+  "noOfflineData": "No offline data saved",
+  "offlineModeNotice": "Offline mode – data may be outdated"
 }

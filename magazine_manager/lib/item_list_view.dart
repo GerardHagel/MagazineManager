@@ -1,15 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:magazine_manager/main.dart';
+import 'package:magazine_manager/services/item_service.dart';
+import 'package:magazine_manager/services/stock_service.dart';
 import 'dart:convert';
 import 'item_detail_view.dart';
 import 'models/item.dart';
 import 'l10n/app_localizations.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive/hive.dart';
 
 class ItemListView extends StatefulWidget {
   final String token;
   final String apiUrl;
-  const ItemListView({super.key, required this.token, required this.apiUrl});
+  final bool isOfflineMode;
+  final bool isReadOnly;
+
+  const ItemListView({
+    super.key,
+    required this.token,
+    required this.apiUrl,
+    this.isOfflineMode = false,
+    this.isReadOnly = false,
+  });
 
   @override
   State<ItemListView> createState() => _ItemListViewState();
@@ -20,47 +33,65 @@ class _ItemListViewState extends State<ItemListView> {
   bool isLoading = true;
   String? errorMessage;
 
-  Future<void> fetchItems() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${widget.apiUrl}/api/item/index'),
-        headers: {'Token': widget.token, 'Accept': 'application/json'},
-      );
+  Future<void> syncPendingItems() async {
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity == ConnectivityResult.none) return;
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseBody = jsonDecode(response.body);
-        final List<dynamic> data = responseBody['array'];
-        if (mounted) {
-          setState(() {
-            items = data.map((json) => Item.fromJson(json)).toList();
-            isLoading = false;
-            errorMessage = null;
-          });
+    final box = Hive.box('pendingItemsBox');
+    final List<dynamic> pendingList = box.get('items', defaultValue: []);
+
+    if (pendingList.isEmpty) return;
+
+    final List<dynamic> successfullySynced = [];
+
+    for (final itemData in pendingList) {
+      try {
+        final response = await http.post(
+          Uri.parse('${widget.apiUrl}/api/stock/add'),
+          headers: {'Token': widget.token, 'Content-Type': 'application/json'},
+          body: jsonEncode(itemData),
+        );
+
+        if (response.statusCode == 200) {
+          successfullySynced.add(itemData);
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage =
-                'Nie udało się pobrać danych'; // Możesz dodać tłumaczenie
-            isLoading = false;
-          });
-        }
+      } catch (e) {
+        // Możesz logować błędy, ale nie przerywaj całej synchronizacji
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = 'Błąd podczas pobierania danych: $e';
-          isLoading = false;
-        });
-      }
-      print('Błąd podczas pobierania: $e');
+    }
+
+    if (successfullySynced.isNotEmpty) {
+      final remaining = pendingList
+          .where((e) => !successfullySynced.contains(e))
+          .toList();
+      await box.put('items', remaining);
     }
   }
+
+  late final ItemService itemService;
 
   @override
   void initState() {
     super.initState();
-    fetchItems();
+    itemService = ItemService(token: widget.token, apiUrl: widget.apiUrl);
+    final stockSvc = StockService(token: widget.token, apiUrl: widget.apiUrl);
+    stockSvc.syncPending();
+    _loadItems();
+  }
+
+  Future<void> _loadItems() async {
+    try {
+      final data = await itemService.fetchItems(widget.isOfflineMode);
+      setState(() {
+        items = data;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        errorMessage = e.toString();
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -69,11 +100,11 @@ class _ItemListViewState extends State<ItemListView> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(loc.itemListTitle), // np. "Lista przedmiotów"
+        title: Text(loc.itemListTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: loc.logoutTooltip, // np. "Wyloguj się"
+            tooltip: loc.logoutTooltip,
             onPressed: () {
               Navigator.pushAndRemoveUntil(
                 context,
@@ -106,6 +137,7 @@ class _ItemListViewState extends State<ItemListView> {
                           item: item,
                           token: widget.token,
                           apiUrl: widget.apiUrl,
+                          isReadOnly: widget.isReadOnly,
                         ),
                       ),
                     );

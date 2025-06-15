@@ -76,4 +76,13 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get errorFetchingItems => 'Nie udało się pobrać danych';
+
+  @override
+  String get checkStockOffline => 'Sprawdź stan magazynu (offline)';
+
+  @override
+  String get noOfflineData => 'Nie zapisano żadnych danych offline';
+
+  @override
+  String get offlineModeNotice => 'Tryb offline – dane mogą być nieaktualne';
 }

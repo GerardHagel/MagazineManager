@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:hive/hive.dart';
 import 'package:magazine_manager/l10n/app_localizations.dart';
 import 'package:magazine_manager/models/item.dart';
 
@@ -37,29 +38,52 @@ class _AddItemViewState extends State<AddItemView> {
       final int amount = int.parse(amountController.text);
       final String location = locationController.text;
 
-      final response = await http.post(
-        Uri.parse('${widget.apiUrl}/api/stock/add'),
-        headers: {'Token': widget.token, 'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'ProductID': id,
-          'Amount': amount,
-          'Location': location,
-        }),
-      );
+      final itemData = {
+        'ProductID': id,
+        'Amount': amount,
+        'Location': location,
+      };
 
-      if (response.statusCode == 200) {
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOffline = connectivity == ConnectivityResult.none;
+
+      if (isOffline) {
+        final box = Hive.box('pendingItemsBox');
+        final List<dynamic> pendingList = box.get('items', defaultValue: []);
+        pendingList.add(itemData);
+        await box.put('items', pendingList);
+
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Dodano produkt!')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Zapisano lokalnie. Przedmiot zostanie dodany po odzyskaniu internetu.',
+              ),
+            ),
+          );
           Navigator.pop(context, true);
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Błąd: ${response.body}')));
-          setState(() => isSubmitting = false);
+        final response = await http.post(
+          Uri.parse('${widget.apiUrl}/api/stock/add'),
+          headers: {'Token': widget.token, 'Content-Type': 'application/json'},
+          body: jsonEncode(itemData),
+        );
+
+        if (response.statusCode == 200) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Dodano produkt!')));
+            Navigator.pop(context, true);
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Błąd: ${response.body}')));
+            setState(() => isSubmitting = false);
+          }
         }
       }
     }

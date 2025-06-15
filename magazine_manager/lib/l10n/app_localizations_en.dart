@@ -76,4 +76,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get errorFetchingItems => 'Unable to download data';
+
+  @override
+  String get checkStockOffline => 'Check stock (offline)';
+
+  @override
+  String get noOfflineData => 'No offline data saved';
+
+  @override
+  String get offlineModeNotice => 'Offline mode – data may be outdated';
 }

@@ -232,6 +232,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to download data'**
   String get errorFetchingItems;
+
+  /// No description provided for @checkStockOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'Check stock (offline)'**
+  String get checkStockOffline;
+
+  /// No description provided for @noOfflineData.
+  ///
+  /// In en, this message translates to:
+  /// **'No offline data saved'**
+  String get noOfflineData;
+
+  /// No description provided for @offlineModeNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode – data may be outdated'**
+  String get offlineModeNotice;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
